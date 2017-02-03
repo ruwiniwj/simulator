@@ -31,6 +31,7 @@ public class EventSimulatorConstants {
     public static final String ATTRIBUTETYPE_BOOLEAN = "Boolean";
     public static final String FEED_SIMULATION_STREAM_CONFIGURATION = "streamConfiguration";
     public static final String ORDER_BY_TIMESTAMP = "orderByTimeStamp";
+    public static final String TIMESTAMP_ATTRIBUTE = "timestampAttribute";
     //Feed Simulation type constants
     public static final String RANDOM_DATA_SIMULATION = "RandomDataSimulation";
     public static final String FILE_FEED_SIMULATION = "FileFeedSimulation";

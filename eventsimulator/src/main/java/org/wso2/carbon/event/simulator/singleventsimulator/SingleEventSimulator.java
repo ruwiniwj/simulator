@@ -73,7 +73,7 @@ public class SingleEventSimulator implements EventSimulator {
         try {
             //Convert attribute value as an Event
             event = EventConverter.eventConverter(streamName, attributeValue, ExecutionPlanDeployer.getInstance().getExecutionPlanDto());
-            System.out.println("Input Event " + Arrays.deepToString(event.getEventData())); //TODO: 11/12/16 delete print statement
+            System.out.println("Input Event (Single feel)" + Arrays.deepToString(event.getEventData())); //TODO: 11/12/16 delete print statement
 
             //send created event to inputHandler for further process in siddhi
             send(streamName, event);

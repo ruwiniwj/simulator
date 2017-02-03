@@ -48,11 +48,14 @@ public class FeedSimulationDto {
      */
     private List<FeedSimulationStreamConfiguration> streamConfigurationList;
 
+    private int noOfParallelSimulationSources = 0;
+
     /**
      * Initialize FeedSimulationDto
      */
-    public FeedSimulationDto() {
-    }
+    public FeedSimulationDto() {}
+
+    public boolean getOrderByTimeStamp() { return orderByTimeStamp;}
 
     public void setOrderByTimeStamp(boolean orderByTimeStamp) {
         this.orderByTimeStamp = orderByTimeStamp;
@@ -65,4 +68,8 @@ public class FeedSimulationDto {
     public void setStreamConfigurationList(List<FeedSimulationStreamConfiguration> streamConfigurationList) {
         this.streamConfigurationList = streamConfigurationList;
     }
+
+    public int getNoOfParallelSimulationSources() { return noOfParallelSimulationSources;}
+
+    public void setNoOfParallelSimulationSources(int noOfParallelSimulationSources) { this.noOfParallelSimulationSources = noOfParallelSimulationSources;}
 }

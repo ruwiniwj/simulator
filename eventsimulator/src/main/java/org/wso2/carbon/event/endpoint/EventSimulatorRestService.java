@@ -30,11 +30,14 @@ import org.wso2.carbon.event.simulator.utils.EventSimulatorParser;
 import org.wso2.carbon.event.simulator.utils.EventSimulatorServiceExecutor;
 import org.wso2.msf4j.formparam.FileInfo;
 import org.wso2.msf4j.formparam.FormDataParam;
+import org.wso2.msf4j.formparam.FormItem;
+import org.wso2.msf4j.formparam.FormParamIterator;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.InputStream;
@@ -271,6 +274,4 @@ public class EventSimulatorRestService {
         }
         return Response.ok().entity(jsonString).build();
     }
-
-
 }

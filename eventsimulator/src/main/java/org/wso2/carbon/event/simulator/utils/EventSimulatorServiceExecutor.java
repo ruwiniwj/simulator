@@ -95,11 +95,12 @@ public class EventSimulatorServiceExecutor{
                         int noOfStream = feedSimulationConfig.getStreamConfigurationList().size();
                         //creating databaseFeedSimulation thread pool for feed simulation
                         for (int i = 0; i < noOfStream; i++) {
-                            SimulationStarter simulationStarter = new SimulationStarter(feedSimulationConfig.getStreamConfigurationList().get(i));
+                            SimulationStarter simulationStarter = new SimulationStarter(feedSimulationConfig.getStreamConfigurationList().get(i),feedSimulationConfig.getNoOfParallelSimulationSources());
                             //calling execute method of ExecutorService
 //                        executor.execute(simulationStarter);
                             new Thread(simulationStarter).start();
                         }
+                        running = false;
                     }
                 }
             }
@@ -108,9 +109,11 @@ public class EventSimulatorServiceExecutor{
 
     private class SimulationStarter implements Runnable {
         FeedSimulationStreamConfiguration streamConfiguration;
+        int noOfParallelSimulationSources;
 
-        SimulationStarter(FeedSimulationStreamConfiguration streamConfiguration) {
+        SimulationStarter(FeedSimulationStreamConfiguration streamConfiguration, int noOfParallelSimulationSources) {
             this.streamConfiguration = streamConfiguration;
+            this.noOfParallelSimulationSources = noOfParallelSimulationSources;
         }
 
         /**
@@ -134,10 +137,7 @@ public class EventSimulatorServiceExecutor{
                 } else if (streamConfiguration.getSimulationType().compareTo(EventSimulatorConstants.FILE_FEED_SIMULATION) == 0) {
                     csvFeedEventSimulator = new CSVFeedEventSimulator();
                     csvFeedEventSimulator.send((CSVFileSimulationDto) streamConfiguration);
-                }
-                // TODO: 14/12/16 For Database simulation
-                else if (streamConfiguration.getSimulationType().compareTo(EventSimulatorConstants.DATABASE_FEED_SIMULATION) == 0)
-                {
+                } else if (streamConfiguration.getSimulationType().compareTo(EventSimulatorConstants.DATABASE_FEED_SIMULATION) == 0) {
                     databaseFeedSimulator = new DatabaseFeedSimulator();
                     databaseFeedSimulator.send((DatabaseFeedSimulationDto) streamConfiguration);
                 }
@@ -165,8 +165,7 @@ public class EventSimulatorServiceExecutor{
                             CSVFeedEventSimulator.isStopped = true;
                             csvFeedEventSimulator = null;
                         }
-                        if (databaseFeedSimulator != null)
-                        {
+                        if (databaseFeedSimulator != null) {
                             DatabaseFeedSimulator.isStopped = true;
                             databaseFeedSimulator = null;
                         }
@@ -185,7 +184,7 @@ public class EventSimulatorServiceExecutor{
      * pause the simulation process
      */
     public void pause() {
-        try{
+        try {
         if (running) {
             if (randomDataEventSimulator != null) {
                 RandomDataEventSimulator.isPaused = true;
@@ -193,8 +192,7 @@ public class EventSimulatorServiceExecutor{
             if (csvFeedEventSimulator != null) {
                 CSVFeedEventSimulator.isPaused = true;
             }
-            if (databaseFeedSimulator != null)
-            {
+            if (databaseFeedSimulator != null) {
                 DatabaseFeedSimulator.isPaused = true;
             }
             log.info("Event Simulation process is paused");
@@ -219,8 +217,7 @@ public class EventSimulatorServiceExecutor{
                     CSVFeedEventSimulator.isPaused = false;
                     csvFeedEventSimulator.resume();
                 }
-                if (databaseFeedSimulator != null)
-                {
+                if (databaseFeedSimulator != null) {
                     DatabaseFeedSimulator.isPaused = false;
                     databaseFeedSimulator.resume();
                 }

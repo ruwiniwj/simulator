@@ -168,7 +168,7 @@ public class RandomDataEventSimulator implements EventSimulator {
       Percentage of send events
      */
                     double percentage = ((i + 1) * 100) / noOfEvents;
-                    System.out.println("Input Event " + Arrays.deepToString(event.getEventData()) + "Percentage :" + percentage);// TODO: 13/12/16 delete sout
+                    System.out.println("Input Event (random feed) " + Arrays.deepToString(event.getEventData()) + "Percentage :" + percentage);// TODO: 13/12/16 delete sout
                     //send the event to input handler
                     send(randomDataSimulationConfig.getStreamName(), event);
                     //delay between two events

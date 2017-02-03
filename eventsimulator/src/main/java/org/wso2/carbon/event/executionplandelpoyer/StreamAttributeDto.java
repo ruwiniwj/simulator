@@ -39,7 +39,7 @@ public class StreamAttributeDto {
         return attributeType;
     }
 
-    public void setAttributeType(String attributeType) {
+    public void etAttributeType(String attributeType) {
         this.attributeType = attributeType;
     }
 }

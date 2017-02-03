@@ -267,66 +267,45 @@ public class EventSimulatorParser {
         return csvFileSimulationDto;
     }
     // TODO R database parser
-    private static DatabaseFeedSimulationDto databaseFeedSimulationParser(String databaseConfigurations)
-    {
+    /**
+     * Convert the database configuration file into a DatabaseFeedSimulationDto object
+     *
+     * @param databaseConfigurations : database configuration string
+     * @return a DatabaseFeedSimulationDto object
+     * */
+
+    private static DatabaseFeedSimulationDto databaseFeedSimulationParser(String databaseConfigurations){
+
        DatabaseFeedSimulationDto databaseFeedSimulationDto = new DatabaseFeedSimulationDto();
        JSONObject jsonObject= new JSONObject(databaseConfigurations);
        ExecutionPlanDto executionPlanDto = ExecutionPlanDeployer.getInstance().getExecutionPlanDto();
 
-       databaseFeedSimulationDto.setDatabaseConfigName((String) jsonObject.get(EventSimulatorConstants.DATABASE_CONFIGURATION_NAME));
-       databaseFeedSimulationDto.setDatabaseName((String) jsonObject.get(EventSimulatorConstants.DATABASE_NAME));
-       databaseFeedSimulationDto.setUsername((String) jsonObject.get(EventSimulatorConstants.USER_NAME));
-       databaseFeedSimulationDto.setPassword((String) jsonObject.get(EventSimulatorConstants.PASSWORD));
-       databaseFeedSimulationDto.setTableName((String) jsonObject.get(EventSimulatorConstants.TABLE_NAME));
+//       assign values for database configuration attributes
+       databaseFeedSimulationDto.setDatabaseConfigName(jsonObject.getString(EventSimulatorConstants.DATABASE_CONFIGURATION_NAME));
+       databaseFeedSimulationDto.setDatabaseName(jsonObject.getString(EventSimulatorConstants.DATABASE_NAME));
+       databaseFeedSimulationDto.setUsername(jsonObject.getString(EventSimulatorConstants.USER_NAME));
+       databaseFeedSimulationDto.setPassword(jsonObject.getString(EventSimulatorConstants.PASSWORD));
+       databaseFeedSimulationDto.setTableName(jsonObject.getString(EventSimulatorConstants.TABLE_NAME));
        JSONArray jsonArray = jsonObject.getJSONArray(EventSimulatorConstants.COLUMN_NAMES_AND_TYPES);
-       databaseFeedSimulationDto.setStreamName((String) jsonObject.get(EventSimulatorConstants.STREAM_NAME));
+       databaseFeedSimulationDto.setStreamName(jsonObject.getString(EventSimulatorConstants.STREAM_NAME));
        databaseFeedSimulationDto.setDelay(jsonObject.getInt(EventSimulatorConstants.DELAY));
-
-       StreamDefinitionDto streamDefinitionDto = executionPlanDto.getInputStreamDtoMap().get(databaseFeedSimulationDto.getStreamName());
-       List<StreamAttributeDto> streamAttributeDtos = streamDefinitionDto.getStreamAttributeDtos();
-
-
-
-       if (jsonArray.length() != streamAttributeDtos.size())
-       {
-//           todo R change the message
-           throw new EventSimulationException("Configuration of attribute for " +
-                   "feed simulation is missing in " + streamDefinitionDto.getStreamName() +
-                   " : " + " No of attribute in stream " + streamDefinitionDto.getStreamAttributeDtos().size());
-       }
 
        Gson gson = new Gson();
        HashMap<String,String> columnAndTypes = new HashMap<>();
 
-       for(int i=0; i<jsonArray.length();i++)
-       {
+//       insert the specified column names and types into a hashmap and insert it to database configuration
+       for (int i=0; i<jsonArray.length();i++) {
            if (!jsonArray.getJSONObject(i).isNull(EventSimulatorConstants.COLUMN_NAME)&&
-                   !jsonArray.getJSONObject(i).isNull(EventSimulatorConstants.COLUMN_TYPE))
-           {
+                   !jsonArray.getJSONObject(i).isNull(EventSimulatorConstants.COLUMN_TYPE)) {
+
                columnAndTypes.put(jsonArray.getJSONObject(i).getString(EventSimulatorConstants.COLUMN_NAME),
                        jsonArray.getJSONObject(i).getString(EventSimulatorConstants.COLUMN_TYPE));
-           }
-           else
+           } else {
                throw new EventSimulationException("Column name and type cannot contain null values");
-       }
-       databaseFeedSimulationDto.setColumnNamesAndTypes(columnAndTypes);
-       DatabaseConnection databaseConnection = new DatabaseConnection();
-       ResultSet resultSet = databaseConnection.getDatabaseEventItems(databaseFeedSimulationDto);
-
-       try
-       {
-           if(resultSet.next())
-           {
-              databaseFeedSimulationDto.setResultSet(resultSet);
            }
-           else
-               throw new EventSimulationException("Table" + databaseFeedSimulationDto.getTableName() + "contains " +
-                       "no entries for the columns specified.");
        }
-       catch (SQLException e)
-       {
-           log.error(e.getMessage());
-       }
+
+       databaseFeedSimulationDto.setColumnNamesAndTypes(columnAndTypes);
 
        return databaseFeedSimulationDto;
     }
@@ -350,17 +329,22 @@ public class EventSimulatorParser {
         FeedSimulationDto feedSimulationDto = new FeedSimulationDto();
         JSONObject jsonObject = new JSONObject(feedSimulationDetails);
 
+        List<FeedSimulationStreamConfiguration> feedSimulationStreamConfigurationList = new ArrayList<>();
+
+        JSONArray jsonArray = jsonObject.getJSONArray(EventSimulatorConstants.FEED_SIMULATION_STREAM_CONFIGURATION);
+
         if (jsonObject.getBoolean(EventSimulatorConstants.ORDER_BY_TIMESTAMP)) {
             feedSimulationDto.setOrderByTimeStamp(jsonObject.getBoolean(EventSimulatorConstants.ORDER_BY_TIMESTAMP));
+            feedSimulationDto.setNoOfParallelSimulationSources(jsonArray.length());
+            EventSender.setPointer(feedSimulationDto.getNoOfParallelSimulationSources());
+            EventSender.setMinQueueSize(feedSimulationDto.getNoOfParallelSimulationSources());
         }
-        List<FeedSimulationStreamConfiguration> feedSimulationStreamConfigurationList = new ArrayList<>();
 
         //check the simulation type for databaseFeedSimulation given stream and convert the string to relevant configuration object
         //            1. CSV file feed simulation : Simulate using CSV File
         //            2. Database Simulation : Simulate using Database source
         //            3. Random data simulation : Simulate using Generated random Data
 
-        JSONArray jsonArray = jsonObject.getJSONArray(EventSimulatorConstants.FEED_SIMULATION_STREAM_CONFIGURATION);
         for (int i = 0; i < jsonArray.length(); i++) {
             if (!jsonArray.getJSONObject(i).isNull(EventSimulatorConstants.FEED_SIMULATION_TYPE)) {
                 String feedSimulationType = jsonArray.getJSONObject(i).getString(EventSimulatorConstants.FEED_SIMULATION_TYPE);
@@ -384,8 +368,13 @@ public class EventSimulatorParser {
                     case EventSimulatorConstants.DATABASE_FEED_SIMULATION:
                         DatabaseFeedSimulationDto databaseFeedSimulationDto =
                                 EventSimulatorParser.databaseFeedSimulationParser(String.valueOf(jsonArray.getJSONObject(i)));
+                        if (feedSimulationDto.getOrderByTimeStamp()) {
+                            databaseFeedSimulationDto.setTimestampAttribute(String.valueOf(jsonArray.getJSONObject(i).
+                                    getString(EventSimulatorConstants.TIMESTAMP_ATTRIBUTE)));
+                        }
                         databaseFeedSimulationDto.setSimulationType(EventSimulatorConstants.DATABASE_FEED_SIMULATION);
                         feedSimulationStreamConfigurationList.add(databaseFeedSimulationDto);
+
                         break;
                     default:
                         log.error(feedSimulationType + "is not available , required only : " +
