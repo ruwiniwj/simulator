@@ -19,15 +19,11 @@ package org.wso2.carbon.event.simulator.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.wso2.carbon.event.executionplandelpoyer.ExecutionPlanDeployer;
 import org.wso2.carbon.event.executionplandelpoyer.ExecutionPlanDto;
-import org.wso2.carbon.event.executionplandelpoyer.StreamAttributeDto;
 import org.wso2.carbon.event.executionplandelpoyer.StreamDefinitionDto;
 import org.wso2.carbon.event.simulator.bean.FeedSimulationDto;
 import org.wso2.carbon.event.simulator.bean.FeedSimulationStreamConfiguration;
@@ -37,7 +33,6 @@ import org.wso2.carbon.event.simulator.constants.RandomDataGeneratorConstants;
 import org.wso2.carbon.event.simulator.csvFeedSimulation.CSVFileSimulationDto;
 import org.wso2.carbon.event.simulator.csvFeedSimulation.core.FileDto;
 import org.wso2.carbon.event.simulator.databaseFeedSimulation.DatabaseFeedSimulationDto;
-import org.wso2.carbon.event.simulator.databaseFeedSimulation.util.DatabaseConnection;
 import org.wso2.carbon.event.simulator.exception.EventSimulationException;
 import org.wso2.carbon.event.simulator.randomdatafeedsimulation.bean.CustomBasedAttribute;
 import org.wso2.carbon.event.simulator.randomdatafeedsimulation.bean.FeedSimulationStreamAttributeDto;
@@ -47,15 +42,8 @@ import org.wso2.carbon.event.simulator.randomdatafeedsimulation.bean.RandomDataS
 import org.wso2.carbon.event.simulator.randomdatafeedsimulation.bean.RegexBasedAttributeDto;
 import org.wso2.carbon.event.simulator.randomdatafeedsimulation.utils.RandomDataGenerator;
 import org.wso2.carbon.event.simulator.singleventsimulator.SingleEventDto;
-import scala.util.parsing.combinator.testing.Str;
 
 import java.io.IOException;
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.InputStream;
-import java.nio.Buffer;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -211,6 +199,9 @@ public class EventSimulatorParser {
         //Convert the singleEventSimulationConfigurationString string into SingleEventDto Object
         try {
             singleEventDto = mapper.readValue(singleEventSimulationConfigurationString, SingleEventDto.class);
+            singleEventDto.setSimulationType(EventSimulatorConstants.SINGLE_EVENT_SIMULATION);
+            singleEventDto.setTimestampAttribute(null);
+
             ExecutionPlanDto executionPlanDto = ExecutionPlanDeployer.getInstance().getExecutionPlanDto();
             StreamDefinitionDto streamDefinitionDto = executionPlanDto.getInputStreamDtoMap().get(singleEventDto.getStreamName());
             if (singleEventDto.getAttributeValues().size() != streamDefinitionDto.getStreamAttributeDtos().size()) {
@@ -260,54 +251,54 @@ public class EventSimulatorParser {
             csvFileSimulationDto.setDelay(jsonObject.getInt(EventSimulatorConstants.DELAY));
 
 
-        }catch (Exception FileNotFound)
-        {
-            System.out.println("File not found : " +FileNotFound.getMessage());
+        } catch (Exception FileNotFound) {
+            System.out.println("File not found : " + FileNotFound.getMessage());
         }
         return csvFileSimulationDto;
     }
     // TODO R database parser
+
     /**
      * Convert the database configuration file into a DatabaseFeedSimulationDto object
      *
      * @param databaseConfigurations : database configuration string
      * @return a DatabaseFeedSimulationDto object
-     * */
+     */
 
-    private static DatabaseFeedSimulationDto databaseFeedSimulationParser(String databaseConfigurations){
+    private static DatabaseFeedSimulationDto databaseFeedSimulationParser(String databaseConfigurations) {
 
-       DatabaseFeedSimulationDto databaseFeedSimulationDto = new DatabaseFeedSimulationDto();
-       JSONObject jsonObject= new JSONObject(databaseConfigurations);
-       ExecutionPlanDto executionPlanDto = ExecutionPlanDeployer.getInstance().getExecutionPlanDto();
+        DatabaseFeedSimulationDto databaseFeedSimulationDto = new DatabaseFeedSimulationDto();
+        JSONObject jsonObject = new JSONObject(databaseConfigurations);
+        ExecutionPlanDto executionPlanDto = ExecutionPlanDeployer.getInstance().getExecutionPlanDto();
 
 //       assign values for database configuration attributes
-       databaseFeedSimulationDto.setDatabaseConfigName(jsonObject.getString(EventSimulatorConstants.DATABASE_CONFIGURATION_NAME));
-       databaseFeedSimulationDto.setDatabaseName(jsonObject.getString(EventSimulatorConstants.DATABASE_NAME));
-       databaseFeedSimulationDto.setUsername(jsonObject.getString(EventSimulatorConstants.USER_NAME));
-       databaseFeedSimulationDto.setPassword(jsonObject.getString(EventSimulatorConstants.PASSWORD));
-       databaseFeedSimulationDto.setTableName(jsonObject.getString(EventSimulatorConstants.TABLE_NAME));
-       JSONArray jsonArray = jsonObject.getJSONArray(EventSimulatorConstants.COLUMN_NAMES_AND_TYPES);
-       databaseFeedSimulationDto.setStreamName(jsonObject.getString(EventSimulatorConstants.STREAM_NAME));
-       databaseFeedSimulationDto.setDelay(jsonObject.getInt(EventSimulatorConstants.DELAY));
+        databaseFeedSimulationDto.setDatabaseConfigName(jsonObject.getString(EventSimulatorConstants.DATABASE_CONFIGURATION_NAME));
+        databaseFeedSimulationDto.setDatabaseName(jsonObject.getString(EventSimulatorConstants.DATABASE_NAME));
+        databaseFeedSimulationDto.setUsername(jsonObject.getString(EventSimulatorConstants.USER_NAME));
+        databaseFeedSimulationDto.setPassword(jsonObject.getString(EventSimulatorConstants.PASSWORD));
+        databaseFeedSimulationDto.setTableName(jsonObject.getString(EventSimulatorConstants.TABLE_NAME));
+        JSONArray jsonArray = jsonObject.getJSONArray(EventSimulatorConstants.COLUMN_NAMES_AND_TYPES);
+        databaseFeedSimulationDto.setStreamName(jsonObject.getString(EventSimulatorConstants.STREAM_NAME));
+        databaseFeedSimulationDto.setDelay(jsonObject.getInt(EventSimulatorConstants.DELAY));
 
-       Gson gson = new Gson();
-       HashMap<String,String> columnAndTypes = new HashMap<>();
+        Gson gson = new Gson();
+        HashMap<String, String> columnAndTypes = new HashMap<>();
 
 //       insert the specified column names and types into a hashmap and insert it to database configuration
-       for (int i=0; i<jsonArray.length();i++) {
-           if (!jsonArray.getJSONObject(i).isNull(EventSimulatorConstants.COLUMN_NAME)&&
-                   !jsonArray.getJSONObject(i).isNull(EventSimulatorConstants.COLUMN_TYPE)) {
+        for (int i = 0; i < jsonArray.length(); i++) {
+            if (!jsonArray.getJSONObject(i).isNull(EventSimulatorConstants.COLUMN_NAME) &&
+                    !jsonArray.getJSONObject(i).isNull(EventSimulatorConstants.COLUMN_TYPE)) {
 
-               columnAndTypes.put(jsonArray.getJSONObject(i).getString(EventSimulatorConstants.COLUMN_NAME),
-                       jsonArray.getJSONObject(i).getString(EventSimulatorConstants.COLUMN_TYPE));
-           } else {
-               throw new EventSimulationException("Column name and type cannot contain null values");
-           }
-       }
+                columnAndTypes.put(jsonArray.getJSONObject(i).getString(EventSimulatorConstants.COLUMN_NAME),
+                        jsonArray.getJSONObject(i).getString(EventSimulatorConstants.COLUMN_TYPE));
+            } else {
+                throw new EventSimulationException("Column name and type cannot contain null values");
+            }
+        }
 
-       databaseFeedSimulationDto.setColumnNamesAndTypes(columnAndTypes);
+        databaseFeedSimulationDto.setColumnNamesAndTypes(columnAndTypes);
 
-       return databaseFeedSimulationDto;
+        return databaseFeedSimulationDto;
     }
 
 
@@ -336,8 +327,7 @@ public class EventSimulatorParser {
         if (jsonObject.getBoolean(EventSimulatorConstants.ORDER_BY_TIMESTAMP)) {
             feedSimulationDto.setOrderByTimeStamp(jsonObject.getBoolean(EventSimulatorConstants.ORDER_BY_TIMESTAMP));
             feedSimulationDto.setNoOfParallelSimulationSources(jsonArray.length());
-            EventSender.setPointer(feedSimulationDto.getNoOfParallelSimulationSources());
-            EventSender.setMinQueueSize(feedSimulationDto.getNoOfParallelSimulationSources());
+            EventSender.getInstance().setMinQueueSize(feedSimulationDto.getNoOfParallelSimulationSources());
         }
 
         //check the simulation type for databaseFeedSimulation given stream and convert the string to relevant configuration object

@@ -21,13 +21,15 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.log4j.Logger;
+import org.wso2.carbon.event.executionplandelpoyer.Event;
 import org.wso2.carbon.event.executionplandelpoyer.ExecutionPlanDeployer;
 import org.wso2.carbon.event.executionplandelpoyer.ExecutionPlanDto;
-import org.wso2.carbon.event.executionplandelpoyer.Event;
 import org.wso2.carbon.event.simulator.EventSimulator;
+import org.wso2.carbon.event.simulator.bean.FeedSimulationStreamConfiguration;
 import org.wso2.carbon.event.simulator.csvFeedSimulation.CSVFileSimulationDto;
 import org.wso2.carbon.event.simulator.exception.EventSimulationException;
 import org.wso2.carbon.event.simulator.utils.EventConverter;
+import org.wso2.carbon.event.simulator.utils.EventSender;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -44,68 +46,54 @@ import java.util.Arrays;
  */
 public class CSVFeedEventSimulator implements EventSimulator {
     private static final Logger log = Logger.getLogger(CSVFeedEventSimulator.class);
-
-    /**
-     * Percentage of send events
-     */
-    private double percentage = 0;
-
-    /**
-     * Flag used to pause the simulation.
-     */
-    public volatile static boolean isPaused = false;
-
-    /**
-     * Flag used to stop the simulation.
-     */
-    public volatile static boolean isStopped = false;
-
+    private final Object lock = new Object();
+    private CSVFileSimulationDto streamConfiguration;
+    private volatile boolean isPaused = false;
+    private volatile boolean isStopped = false;
 
     /**
      * Initialize CSVFeedEventSimulator to start the simulation
+     *
+     * @param streamConfiguration
      */
-    public CSVFeedEventSimulator() {
+    public CSVFeedEventSimulator(CSVFileSimulationDto streamConfiguration) {
+        this.streamConfiguration = streamConfiguration;
     }
 
-
-    /**
-     * send created event to siddhi input handler
-     *
-     * @param streamName Stream Name
-     * @param event      Created Event
-     */
     @Override
-    public void send(String streamName, Event event) {
-        try {
-            /*
-            get the input handler for particular input stream Name and send the event to that input handler
-             */
-            ExecutionPlanDeployer.getInstance().getInputHandlerMap().get(streamName).send(event.getEventData());
-        } catch (InterruptedException e) {
-            log.error("Error occurred during send event :" + e.getMessage());
-        }
-    }
-
-    /**
-     * start simulation for given configuration
-     *
-     * @param csvFileConfig csvFileConfig
-     * @return true if all event send successfully
-     */
-    public boolean send(CSVFileSimulationDto csvFileConfig) {
-        synchronized (this) {
-            sendEvent(ExecutionPlanDeployer.getInstance().getExecutionPlanDto(), csvFileConfig);
-        }
-        return true;
+    public void pause() {
+        isPaused = true;
     }
 
     @Override
     public void resume() {
-        synchronized (this) {
-            this.notifyAll();
+        isPaused = false;
+        synchronized (lock) {
+            lock.notifyAll();
         }
+    }
+
+    @Override
+    public void stop() {
+        isPaused = true;
+        isStopped = true;
+        synchronized (lock) {
+            lock.notifyAll();
+        }
+    }
 
 
+    @Override
+    public FeedSimulationStreamConfiguration getStreamConfiguration() {
+        return streamConfiguration;
+    }
+
+    /**
+     * start simulation for given configuration
+     */
+    @Override
+    public void run() {
+        sendEvent(ExecutionPlanDeployer.getInstance().getExecutionPlanDto(), streamConfiguration);
     }
 
     /**
@@ -131,19 +119,14 @@ public class CSVFeedEventSimulator implements EventSimulator {
      * @param csvFileConfig    CSVFileSimulationDto
      */
     private void sendEvent(ExecutionPlanDto executionPlanDto, CSVFileSimulationDto csvFileConfig) {
-
-        /*
-          return no of events read from CSV file during ever iteration
-         */
+        // return no of events read from CSV file during ever iteration
         long noOfEvents = 0;
         int delay = csvFileConfig.getDelay();
-        /*
-        Reader for reading character streams from file
-         */
+
+        // Reader for reading character streams from file
         Reader in = null;
-        /*
-        CSVParser to read CSV Values
-         */
+
+        // CSVParser to read CSV Values
         CSVParser csvParser = null;
         if (delay <= 0) {
             log.warn("Events will be sent continuously since the delay between events are set to "
@@ -152,15 +135,10 @@ public class CSVFeedEventSimulator implements EventSimulator {
         }
 
         try {
-                /*
-                Initialize Reader
-                 */
+            // Initialize Reader
             in = new FileReader(String.valueOf(Paths.get(System.getProperty("java.io.tmpdir"), csvFileConfig.getFileDto().getFileInfo().getFileName())));
 
-                /*
-                Initialize CSVParser with appropriate CSVFormat according to delimiter
-                 */
-
+            // Initialize CSVParser with appropriate CSVFormat according to delimiter
             switch (csvFileConfig.getDelimiter()) {
                 case ",":
                     csvParser = CSVParser.parse(in, CSVFormat.DEFAULT);
@@ -177,44 +155,42 @@ public class CSVFeedEventSimulator implements EventSimulator {
 
             int attributeSize = executionPlanDto.getInputStreamDtoMap().get(csvFileConfig.getStreamName()).getStreamAttributeDtos().size();
 
-                /*
-                Iterate through the CSV file line by line
-                 */
-
+            // Iterate through the CSV file line by line
             for (CSVRecord record : csvParser) {
                 try {
-                    synchronized (this) {
-                        if (isStopped) {
-                            isStopped = false;
-                            break;
+                    if (!isPaused) {
+                        if (record.size() != attributeSize) {
+                            log.warn("No of attribute is not equal to attribute size: " + attributeSize + " is needed" + "in Row no:" + noOfEvents + 1);
                         }
-                        if (isPaused) {
-                            this.wait();
+                        String[] attributes = new String[attributeSize];
+                        noOfEvents = csvParser.getCurrentLineNumber();
+
+                        for (int i = 0; i < record.size(); i++) {
+                            attributes[i] = record.get(i);
                         }
-                    }
 
-                    if (record.size() != attributeSize) {
-                        log.warn("No of attribute is not equal to attribute size: " + attributeSize + " is needed" + "in Row no:" + noOfEvents + 1);
-                    }
-                    String[] attributes = new String[attributeSize];
-                    noOfEvents = csvParser.getCurrentLineNumber();
+                        //convert Attribute values into event
+                        Event event = EventConverter.eventConverter(csvFileConfig.getStreamName(), attributes, executionPlanDto);
+                        System.out.println("Input Event (CSV feed)" + Arrays.deepToString(event.getEventData())); // TODO: 13/12/16 delete sout
 
-                    for (int i = 0; i < record.size(); i++) {
-                        attributes[i] = record.get(i);
-                    }
+                        //send the event to input handler
+                        EventSender.getInstance().sendEvent(event);
 
-                    //convert Attribute values into event
-                    Event event = EventConverter.eventConverter(csvFileConfig.getStreamName(), attributes, executionPlanDto);
-                    // TODO: 13/12/16 delete sout
-                    System.out.println("Input Event (CSV feed)" + Arrays.deepToString(event.getEventData()));
-//
-
-                    //send the event to input handler
-                    send(csvFileConfig.getStreamName(), event);
-
-                    //delay between two events
-                    if (delay > 0) {
-                        Thread.sleep(delay);
+                        //delay between two events
+                        if (delay > 0) {
+                            Thread.sleep(delay);
+                        }
+                    } else if (isStopped) {
+                        break;
+                    } else {
+                        synchronized (lock) {
+                            try {
+                                lock.wait();
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                continue;
+                            }
+                        }
                     }
                 } catch (EventSimulationException e) {
                     log.error("Event dropped due to Error occurred during generating an event" + e.getMessage());
@@ -222,7 +198,6 @@ public class CSVFeedEventSimulator implements EventSimulator {
                     log.error("Error occurred during send event" + e.getMessage());
                 }
             }
-
         } catch (IllegalArgumentException e) {
             // TODO: 02/12/16 proper error message
             throw new EventSimulationException("File Parameters are null" + e.getMessage());
@@ -240,7 +215,5 @@ public class CSVFeedEventSimulator implements EventSimulator {
             }
         }
     }
-
-
 }
 

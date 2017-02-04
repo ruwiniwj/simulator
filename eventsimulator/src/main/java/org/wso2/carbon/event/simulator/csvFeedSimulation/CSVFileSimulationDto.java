@@ -31,11 +31,6 @@ public class CSVFileSimulationDto extends FeedSimulationStreamConfiguration {
     private String fileName;
 
     /**
-     * Stream Name
-     */
-    private String streamName;
-
-    /**
      * FileDto has details of file
      */
     private FileDto fileDto;
@@ -60,14 +55,6 @@ public class CSVFileSimulationDto extends FeedSimulationStreamConfiguration {
 
     public void setFileName(String fileName) {
         this.fileName = fileName;
-    }
-
-    public String getStreamName() {
-        return streamName;
-    }
-
-    public void setStreamName(String streamName) {
-        this.streamName = streamName;
     }
 
     public int getDelay() {

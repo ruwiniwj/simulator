@@ -76,11 +76,6 @@ public class RandomDataSimulationDto extends FeedSimulationStreamConfiguration {
     private List<FeedSimulationStreamAttributeDto> FeedSimulationStreamAttributeDto = new ArrayList<>();
 
     /**
-     * Stream Name of an input stream for simulation
-     */
-    private String streamName;
-
-    /**
      * No of Events to be generated as random for simulation
      */
     private double events;
@@ -103,14 +98,6 @@ public class RandomDataSimulationDto extends FeedSimulationStreamConfiguration {
 
     public void setFeedSimulationStreamAttributeDto(List<FeedSimulationStreamAttributeDto> feedSimulationStreamAttributeDto) {
         this.FeedSimulationStreamAttributeDto = feedSimulationStreamAttributeDto;
-    }
-
-    public String getStreamName() {
-        return streamName;
-    }
-
-    public void setStreamName(String streamName) {
-        this.streamName = streamName;
     }
 
     public double getEvents() {
