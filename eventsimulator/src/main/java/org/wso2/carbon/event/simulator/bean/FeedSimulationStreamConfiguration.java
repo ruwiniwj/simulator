@@ -19,9 +19,8 @@
 package org.wso2.carbon.event.simulator.bean;
 
 import org.wso2.carbon.event.simulator.csvFeedSimulation.CSVFileSimulationDto;
-import org.wso2.carbon.event.simulator.randomdatafeedsimulation.bean.RandomDataSimulationDto;
 import org.wso2.carbon.event.simulator.databaseFeedSimulation.DatabaseFeedSimulationDto;
-import scala.util.parsing.combinator.testing.Str;
+import org.wso2.carbon.event.simulator.randomdatafeedsimulation.bean.RandomDataSimulationDto;
 
 /**
  * FeedSimulationStreamConfiguration class represents the feed simulation configuration for an input stream.
@@ -42,20 +41,34 @@ public abstract class FeedSimulationStreamConfiguration {
      */
     private String simulationType;
 
-    private String timestampAttribute;
+    private String timestampAttribute = "";
 
-    // TODO: 21/12/16 add stream here
-    public String getSimulationType() {
+    private String streamName;
+
+    public final String getSimulationType() {
         return simulationType;
     }
 
-    public void setSimulationType(String simulationType) {
+    public final void setSimulationType(String simulationType) {
         this.simulationType = simulationType;
     }
 
-    public String getTimestampAttribute() { return timestampAttribute;}
+    public final String getTimestampAttribute() {
+        return timestampAttribute;
+    }
 
-    public void setTimestampAttribute(String timestampAttribute) { this.timestampAttribute = timestampAttribute; }
+    public final void setTimestampAttribute(String timestampAttribute) {
+        if (timestampAttribute != null && !timestampAttribute.isEmpty()) {
+            this.timestampAttribute = timestampAttribute;
+        }
+    }
 
+    public final String getStreamName() {
+        return streamName;
+    }
 
+    public final void setStreamName(String streamName) {
+        this.streamName = streamName;
+    }
 }
+

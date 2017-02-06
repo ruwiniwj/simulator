@@ -17,7 +17,6 @@ public class DatabaseFeedSimulationDto extends FeedSimulationStreamConfiguration
     private String password;
     private String tableName;
     private HashMap<String,String> columnNamesAndTypes;
-    private String streamName;
     private int delay;
 
     public DatabaseFeedSimulationDto() {  }
@@ -58,14 +57,6 @@ public class DatabaseFeedSimulationDto extends FeedSimulationStreamConfiguration
 
     public void setColumnNamesAndTypes(HashMap<String,String> columnNamesAndTypes) {
         this.columnNamesAndTypes = columnNamesAndTypes;
-    }
-
-    public String getStreamName() {
-        return streamName;
-    }
-
-    public void setStreamName(String streamName) {
-        this.streamName = streamName;
     }
 
     public int getDelay() {

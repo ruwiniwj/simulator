@@ -22,25 +22,27 @@ package org.wso2.carbon.event.endpoint;
 import com.google.gson.Gson;
 import org.apache.log4j.Logger;
 import org.wso2.carbon.event.simulator.bean.FeedSimulationDto;
+import org.wso2.carbon.event.simulator.bean.FeedSimulationStreamConfiguration;
 import org.wso2.carbon.event.simulator.csvFeedSimulation.core.FileUploader;
 import org.wso2.carbon.event.simulator.exception.EventSimulationException;
 import org.wso2.carbon.event.simulator.exception.ValidationFailedException;
 import org.wso2.carbon.event.simulator.singleventsimulator.SingleEventDto;
 import org.wso2.carbon.event.simulator.utils.EventSimulatorParser;
-import org.wso2.carbon.event.simulator.utils.EventSimulatorServiceExecutor;
+import org.wso2.carbon.event.simulator.utils.EventSimulatorPoolExecutor;
 import org.wso2.msf4j.formparam.FileInfo;
 import org.wso2.msf4j.formparam.FormDataParam;
-import org.wso2.msf4j.formparam.FormItem;
-import org.wso2.msf4j.formparam.FormParamIterator;
 
 import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.core.Context;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -55,14 +57,13 @@ public class EventSimulatorRestService {
     /**
      * Event simulator service executor for event simulator REST service.
      */
-    private EventSimulatorServiceExecutor eventSimulatorServiceExecutor;
+    private Map<String, EventSimulatorPoolExecutor> executorMap;
 
     /**
      * Initializes the service classes for resources.
      */
-    //// TODO: 19/12/16 shutdown execution plan
     public EventSimulatorRestService() {
-        eventSimulatorServiceExecutor = new EventSimulatorServiceExecutor();
+        executorMap = new ConcurrentHashMap<>();
     }
 
     /**
@@ -72,8 +73,8 @@ public class EventSimulatorRestService {
      *                         <p>
      *                         http://localhost:8080/EventSimulation/singleEventSimulation
      *                         <pre>
-     *                         curl  -X POST -d '{"streamName":"cseEventStream","attributeValues":["WSO2","345","56"]}' http://localhost:8080/EventSimulation/singleEventSimulation
-     *                         </pre>
+     *                                                                         curl  -X POST -d '{"streamName":"cseEventStream","attributeValues":["WSO2","345","56"]}' http://localhost:8080/EventSimulation/singleEventSimulation
+     *                                                                         </pre>
      *                         <p>
      *                         Eg :simulationString: {
      *                         "streamName":"cseEventStream",
@@ -91,9 +92,15 @@ public class EventSimulatorRestService {
         try {
             //parse json string to SingleEventDto object
             SingleEventDto singleEventSimulationConfiguration = EventSimulatorParser.singleEventSimulatorParser(simulationString);
+            FeedSimulationDto feedSimulationDto = new FeedSimulationDto();
+            feedSimulationDto.setStreamConfigurationList(new ArrayList<FeedSimulationStreamConfiguration>() {{
+                add(singleEventSimulationConfiguration);
+            }});
 
             //start single event simulation
-            eventSimulatorServiceExecutor.simulateSingleEvent(singleEventSimulationConfiguration);
+            // TODO: 2/4/17 is there a better way????
+            EventSimulatorPoolExecutor.newEventSimulatorPool(feedSimulationDto, 1);
+
             jsonString = new Gson().toJson("Event is send successfully");
         } catch (EventSimulationException e) {
             throw new EventSimulationException("Single Event simulation failed : " + e.getMessage());
@@ -102,7 +109,7 @@ public class EventSimulatorRestService {
     }
 
     /**
-     * Deploy CSV filereturn Response.ok().entity("File uploaded").build();
+     * Deploy CSV file return Response.ok().entity("File uploaded").build();
      * <p>
      * This function use FormDataParam annotation. WSO@2 MSF4J supports this annotation and multipart/form-data content type.
      * <p>
@@ -200,10 +207,12 @@ public class EventSimulatorRestService {
         String jsonString;
         try {
             //parse json string to FeedSimulationDto object
-            FeedSimulationDto feedSimulationConfig =EventSimulatorParser.feedSimulationParser(feedSimulationConfigDetails);
+            FeedSimulationDto feedSimulationConfig = EventSimulatorParser.feedSimulationParser(feedSimulationConfigDetails);
             //start feed simulation
-            eventSimulatorServiceExecutor.simulateFeedSimulation(feedSimulationConfig);
-            jsonString = new Gson().toJson("Feed simulation starts successfully");
+            String uuid = UUID.randomUUID().toString();
+            // TODO: 2/4/17 Cannot put if there's already a config, or does it really matters? since UUID??
+            executorMap.put(uuid, EventSimulatorPoolExecutor.newEventSimulatorPool(feedSimulationConfig, feedSimulationConfig.getNoOfParallelSimulationSources()));
+            jsonString = new Gson().toJson("Feed simulation starts successfully | uuid : " + uuid);
         } catch (EventSimulationException e) {
             throw new EventSimulationException(e.getMessage());
         }
@@ -215,16 +224,19 @@ public class EventSimulatorRestService {
      *
      * @return Response of completion of process
      * <p>
-     * http://localhost:8080/EventSimulation/feedSimulation/stop
+     * http://localhost:8080/EventSimulation/feedSimulation/stop/{uuid}
      */
     @POST
-    @Path("/feedSimulation/stop")
-    public Response stop() throws InterruptedException {
+    @Path("/feedSimulation/stop/{uuid}")
+    public Response stop(@PathParam("uuid") String uuid) throws InterruptedException {
         String jsonString;
         //stop feed simulation
         try {
-            eventSimulatorServiceExecutor.stop();
-            jsonString = new Gson().toJson("Feed simulation is stopped");
+            // TODO: 2/4/17 Double check whether this really works as expected
+            // TODO: check whether uuid exists in executorMap, and return response accordingly
+            executorMap.get(uuid).stop();
+            executorMap.remove(uuid);
+            jsonString = new Gson().toJson("Feed simulation is stopped | uuid : " + uuid);
         } catch (EventSimulationException e) {
             throw new EventSimulationException(e.getMessage());
         }
@@ -237,16 +249,18 @@ public class EventSimulatorRestService {
      * @return Response of completion of process
      * @throws InterruptedException Interrupted Exception
      *                              <p>
-     *                              http://localhost:8080/EventSimulation/feedSimulation/pause
+     *                              http://localhost:8080/EventSimulation/feedSimulation/pause/{uuid}
      */
     @POST
-    @Path("/feedSimulation/pause")
-    public Response pause() throws InterruptedException {
+    @Path("/feedSimulation/pause/{uuid}")
+    public Response pause(@PathParam("uuid") String uuid) throws InterruptedException {
         String jsonString;
         //pause feed simulation
         try {
-            eventSimulatorServiceExecutor.pause();
-            jsonString = new Gson().toJson("Feed simulation is paused");
+            // TODO: 2/4/17 Double check whether this really works as expected
+            // TODO: check whether uuid exists in executorMap, and return response accordingly
+            executorMap.get(uuid).pause();
+            jsonString = new Gson().toJson("Feed simulation is paused | uuid : " + uuid);
         } catch (EventSimulationException e) {
             throw new EventSimulationException(e.getMessage());
         }
@@ -262,13 +276,15 @@ public class EventSimulatorRestService {
      *                              http://localhost:8080/EventSimulation/feedSimulation/resume
      */
     @POST
-    @Path("/feedSimulation/resume")
-    public Response resume() throws InterruptedException {
+    @Path("/feedSimulation/resume/{uuid}")
+    public Response resume(@PathParam("uuid") String uuid) throws InterruptedException {
         String jsonString;
         //pause feed simulation
         try {
-            eventSimulatorServiceExecutor.resume();
-            jsonString = new Gson().toJson("success");
+            // TODO: 2/4/17 Double check whether this really works as expected
+            // TODO: check whether uuid exists in executorMap, and return response accordingly
+            executorMap.get(uuid).resume();
+            jsonString = new Gson().toJson("Feed simulation resumed | uuid : " + uuid);
         } catch (EventSimulationException e) {
             throw new EventSimulationException(e.getMessage());
         }

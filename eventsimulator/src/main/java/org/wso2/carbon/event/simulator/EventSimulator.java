@@ -19,11 +19,11 @@
 package org.wso2.carbon.event.simulator;
 
 
-import org.wso2.carbon.event.executionplandelpoyer.Event;
+import org.wso2.carbon.event.simulator.bean.FeedSimulationStreamConfiguration;
 import org.wso2.carbon.event.simulator.csvFeedSimulation.core.CSVFeedEventSimulator;
+import org.wso2.carbon.event.simulator.databaseFeedSimulation.core.DatabaseFeedSimulator;
 import org.wso2.carbon.event.simulator.randomdatafeedsimulation.core.RandomDataEventSimulator;
 import org.wso2.carbon.event.simulator.singleventsimulator.SingleEventSimulator;
-import org.wso2.carbon.event.simulator.databaseFeedSimulation.core.DatabaseFeedSimulator;
 
 /**
  * EventSimulator is an Interface class which provides core functions of simulation process such as
@@ -34,11 +34,14 @@ import org.wso2.carbon.event.simulator.databaseFeedSimulation.core.DatabaseFeedS
  * @see CSVFeedEventSimulator
  * @see DatabaseFeedSimulator
  */
-public interface EventSimulator {
-    // TODO: 21/12/16 init config ,start, pause, stop cleanup
+public interface EventSimulator extends Runnable {
 
-    public void send(String streamName, Event event);
+    public void stop();
+
+    public void pause();
 
     public void resume();
+
+    public FeedSimulationStreamConfiguration getStreamConfiguration();
 
 }

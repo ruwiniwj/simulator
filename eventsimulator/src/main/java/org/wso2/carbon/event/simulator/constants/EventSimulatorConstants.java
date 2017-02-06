@@ -36,7 +36,7 @@ public class EventSimulatorConstants {
     public static final String RANDOM_DATA_SIMULATION = "RandomDataSimulation";
     public static final String FILE_FEED_SIMULATION = "FileFeedSimulation";
     public static final String DATABASE_FEED_SIMULATION = "DatabaseFeedSimulation";
-//    public static final String SINGLE_EVENT_SIMULATION = "SingleEventSimulation";
+    public static final String SINGLE_EVENT_SIMULATION = "SingleEventSimulation";
 
     //Feed Simulation stream Configuration constants
 

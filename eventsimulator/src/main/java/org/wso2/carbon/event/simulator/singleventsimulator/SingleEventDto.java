@@ -17,6 +17,8 @@
  */
 package org.wso2.carbon.event.simulator.singleventsimulator;
 
+import org.wso2.carbon.event.simulator.bean.FeedSimulationStreamConfiguration;
+
 import javax.xml.bind.annotation.XmlRootElement;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,11 +28,7 @@ import java.util.List;
  * Represents Single Event Simulation Configuration class
  */
 @XmlRootElement(name = "SingleEventDto")
-public class SingleEventDto {
-    /**
-     * Stream Name of an input stream
-     */
-    private String streamName;
+public class SingleEventDto extends FeedSimulationStreamConfiguration {
 
     /**
      * List of values of attributes
@@ -41,14 +39,6 @@ public class SingleEventDto {
      * Initialize the SingleEventDto
      */
     public SingleEventDto() {
-    }
-
-    public String getStreamName() {
-        return streamName;
-    }
-
-    public void setStreamName(String streamName) {
-        this.streamName = streamName;
     }
 
     public List<String> getAttributeValues() {

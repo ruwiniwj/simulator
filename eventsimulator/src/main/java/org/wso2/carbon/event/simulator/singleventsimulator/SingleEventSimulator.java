@@ -18,11 +18,13 @@
 package org.wso2.carbon.event.simulator.singleventsimulator;
 
 import org.apache.log4j.Logger;
+import org.wso2.carbon.event.executionplandelpoyer.Event;
 import org.wso2.carbon.event.executionplandelpoyer.ExecutionPlanDeployer;
 import org.wso2.carbon.event.simulator.EventSimulator;
-import org.wso2.carbon.event.executionplandelpoyer.Event;
+import org.wso2.carbon.event.simulator.bean.FeedSimulationStreamConfiguration;
 import org.wso2.carbon.event.simulator.exception.EventSimulationException;
 import org.wso2.carbon.event.simulator.utils.EventConverter;
+import org.wso2.carbon.event.simulator.utils.EventSender;
 
 import java.util.Arrays;
 
@@ -32,43 +34,43 @@ import java.util.Arrays;
  */
 public class SingleEventSimulator implements EventSimulator {
     private static final Logger log = Logger.getLogger(SingleEventSimulator.class);
+    private SingleEventDto streamConfiguration;
 
     /**
      * Initialize single event simulator for single event simulation process
-     */
-    public SingleEventSimulator() {
-    }
-
-    /**
-     * send the created event to siddhi InputHandler of particular input stream
      *
-     * @param streamName Stream Name
-     * @param event      Event Object
+     * @param streamConfiguration
      */
+    public SingleEventSimulator(SingleEventDto streamConfiguration) {
+        this.streamConfiguration = streamConfiguration;
+    }
 
     @Override
-    public void send(String streamName, Event event) {
-        try {
-            ExecutionPlanDeployer.getInstance().getInputHandlerMap().get(streamName).send(event.getEventData());
-        } catch (InterruptedException e) {
-            log.error("Error occurred during send event :" + e.getMessage());
-        }
+    public void pause() {
+        // no need to pause
     }
 
-    /**
-     * Create event as stated in single event simulation configuration
-     * send created event to inputHandler for further process in siddhi
-     * <p>
-     * Initialize new event
-     *
-     * @param singleEventSimulationConfig single Event Configuration
-     * @return true if event send successfully ; false if fails
-     */
-    public void send(SingleEventDto singleEventSimulationConfig) {
+    @Override
+    public void resume() {
+        // no need to pause
+    }
+
+    @Override
+    public void stop() {
+        // no need to stop
+    }
+
+    @Override
+    public FeedSimulationStreamConfiguration getStreamConfiguration() {
+        return streamConfiguration;
+    }
+
+    @Override
+    public void run() {
         //attributeValue used to store values of attributes of an input stream
-        String[] attributeValue = new String[singleEventSimulationConfig.getAttributeValues().size()];
-        attributeValue = singleEventSimulationConfig.getAttributeValues().toArray(attributeValue);
-        String streamName = singleEventSimulationConfig.getStreamName();
+        String[] attributeValue = new String[streamConfiguration.getAttributeValues().size()];
+        attributeValue = streamConfiguration.getAttributeValues().toArray(attributeValue);
+        String streamName = streamConfiguration.getStreamName();
         Event event;
         try {
             //Convert attribute value as an Event
@@ -76,17 +78,9 @@ public class SingleEventSimulator implements EventSimulator {
             System.out.println("Input Event (Single feel)" + Arrays.deepToString(event.getEventData())); //TODO: 11/12/16 delete print statement
 
             //send created event to inputHandler for further process in siddhi
-            send(streamName, event);
+            EventSender.getInstance().sendEvent(event);
         } catch (EventSimulationException e) {
             log.error("Error occurred : Failed to send an event" + e.getMessage());
         }
-
     }
-
-
-    @Override
-    public void resume() {
-
-    }
-
 }
